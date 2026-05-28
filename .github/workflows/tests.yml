@@ -9,9 +9,8 @@ jobs:
   tests:
     name: PHP ${{ matrix.php }} – Laravel ${{ matrix.laravel }}
     runs-on: ubuntu-latest
-    fail-fast: false
-
     strategy:
+      fail-fast: false
       matrix:
         php: ['8.2', '8.3', '8.4']
         laravel: [10, 11, 12]
