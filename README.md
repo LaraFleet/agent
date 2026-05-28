@@ -1,5 +1,7 @@
 # LaraFleet Agent
 
+[![Tests](https://github.com/larafleet/agent/actions/workflows/tests.yml/badge.svg)](https://github.com/larafleet/agent/actions/workflows/tests.yml)
+
 The official monitoring agent for [LaraFleet](https://larafleet.com) –
 the monitoring platform for Laravel applications.
 
