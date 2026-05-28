@@ -1,0 +1,72 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} – Laravel ${{ matrix.laravel }}
+    runs-on: ubuntu-latest
+    fail-fast: false
+
+    strategy:
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        laravel: [10, 11, 12]
+        include:
+          - laravel: 10
+            testbench: 8
+          - laravel: 11
+            testbench: 9
+          - laravel: 12
+            testbench: 10
+        exclude:
+          - php: '8.4'
+            laravel: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, curl, json
+          coverage: none
+
+      - name: Pin testbench to Laravel ${{ matrix.laravel }}
+        run: composer require "orchestra/testbench:^${{ matrix.testbench }}.0" --no-interaction --no-update
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: highest
+
+      - name: Run tests
+        run: vendor/bin/phpunit
+
+  style:
+    name: Code style
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Check code style
+        run: vendor/bin/pint --test
