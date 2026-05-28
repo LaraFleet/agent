@@ -1,0 +1,48 @@
+{
+    "name": "larafleet/agent",
+    "description": "Laravel monitoring agent for LaraFleet – sends heartbeats with version, security advisory, queue, and uptime data.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "monitoring", "heartbeat", "security", "devops"],
+    "authors": [
+        {
+            "name": "Müller & Schmitz GmbH",
+            "email": "web@mueller-schmitz.de"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^10.0|^11.0|^12.0",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/http": "^10.0|^11.0|^12.0",
+        "illuminate/queue": "^10.0|^11.0|^12.0",
+        "illuminate/console": "^10.0|^11.0|^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0|^10.0",
+        "phpunit/phpunit": "^10.0|^11.0",
+        "laravel/pint": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "LaraFleet\\Agent\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "LaraFleet\\Agent\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "LaraFleet\\Agent\\AgentServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
