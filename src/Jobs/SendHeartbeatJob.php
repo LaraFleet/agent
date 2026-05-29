@@ -7,16 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use LaraFleet\Agent\Collectors\ComposerPackageCollector;
-use LaraFleet\Agent\Collectors\DeploymentCollector;
-use LaraFleet\Agent\Collectors\DiskUsageCollector;
-use LaraFleet\Agent\Collectors\EnvSnapshotCollector;
-use LaraFleet\Agent\Collectors\LaravelVersionCollector;
-use LaraFleet\Agent\Collectors\NpmPackageCollector;
-use LaraFleet\Agent\Collectors\PhpVersionCollector;
-use LaraFleet\Agent\Collectors\QueueStatusCollector;
-use LaraFleet\Agent\Collectors\SchedulerCollector;
-use LaraFleet\Agent\Http\HeartbeatClient;
+use LaraFleet\Agent\HeartbeatRunner;
 use Throwable;
 
 class SendHeartbeatJob implements ShouldQueue
@@ -27,31 +18,9 @@ class SendHeartbeatJob implements ShouldQueue
 
     public int $timeout = 30;
 
-    public function handle(HeartbeatClient $client): void
+    public function handle(HeartbeatRunner $runner): void
     {
-        $collectors = [
-            new LaravelVersionCollector,
-            new PhpVersionCollector,
-            new ComposerPackageCollector,
-            new NpmPackageCollector,
-            new QueueStatusCollector,
-            new SchedulerCollector,
-            new DiskUsageCollector,
-            new EnvSnapshotCollector,
-            new DeploymentCollector,
-        ];
-
-        $payload = ['timestamp' => time()];
-
-        foreach ($collectors as $collector) {
-            try {
-                $payload = array_merge($payload, $collector->collect());
-            } catch (Throwable $e) {
-                logger()->warning('LaraFleet collector failed: '.get_class($collector).': '.$e->getMessage());
-            }
-        }
-
-        $client->send($payload);
+        $runner->run();
     }
 
     public function failed(Throwable $e): void

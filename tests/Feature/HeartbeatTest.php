@@ -2,6 +2,7 @@
 
 namespace LaraFleet\Agent\Tests\Feature;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use LaraFleet\Agent\AgentServiceProvider;
 use LaraFleet\Agent\Jobs\SendHeartbeatJob;
@@ -21,11 +22,16 @@ class HeartbeatTest extends TestCase
         $app['config']->set('larafleet-agent.npm_enabled', false);
     }
 
-    public function test_heartbeat_sends_post_with_correct_headers(): void
+    private function fakeEndpoint(): void
     {
         Http::fake([
             'https://larafleet.test/api/heartbeat' => Http::response(['ok' => true], 200),
         ]);
+    }
+
+    public function test_heartbeat_sends_post_with_correct_headers(): void
+    {
+        $this->fakeEndpoint();
 
         dispatch_sync(new SendHeartbeatJob);
 
@@ -40,9 +46,7 @@ class HeartbeatTest extends TestCase
 
     public function test_heartbeat_payload_contains_required_fields(): void
     {
-        Http::fake([
-            'https://larafleet.test/api/heartbeat' => Http::response(['ok' => true], 200),
-        ]);
+        $this->fakeEndpoint();
 
         dispatch_sync(new SendHeartbeatJob);
 
@@ -61,9 +65,7 @@ class HeartbeatTest extends TestCase
 
     public function test_signature_is_valid_hmac(): void
     {
-        Http::fake([
-            'https://larafleet.test/api/heartbeat' => Http::response(['ok' => true], 200),
-        ]);
+        $this->fakeEndpoint();
 
         dispatch_sync(new SendHeartbeatJob);
 
@@ -87,5 +89,70 @@ class HeartbeatTest extends TestCase
 
         $this->expectNotToPerformAssertions();
         dispatch_sync(new SendHeartbeatJob);
+    }
+
+    public function test_first_run_is_full_snapshot(): void
+    {
+        $this->fakeEndpoint();
+
+        dispatch_sync(new SendHeartbeatJob);
+
+        Http::assertSent(function ($request) {
+            $body = json_decode($request->body(), true);
+
+            return ($body['type'] ?? null) === 'full'
+                && isset($body['composer_packages'])
+                && isset($body['laravel_version']);
+        });
+    }
+
+    public function test_second_run_within_interval_is_quick(): void
+    {
+        $this->fakeEndpoint();
+
+        dispatch_sync(new SendHeartbeatJob); // full – markiert teure Collectoren im Cache
+        dispatch_sync(new SendHeartbeatJob); // quick – teure Collectoren noch nicht fällig
+
+        Http::assertSent(function ($request) {
+            $body = json_decode($request->body(), true);
+
+            return ($body['type'] ?? null) === 'quick'
+                && ! isset($body['composer_packages'])
+                && ! isset($body['npm_packages'])
+                && ! isset($body['laravel_version'])
+                && ! isset($body['env_snapshot'])
+                && isset($body['queue'])
+                && isset($body['scheduler'])
+                && isset($body['disk_usage_mb']);
+        });
+    }
+
+    public function test_full_again_after_interval_elapsed(): void
+    {
+        $this->fakeEndpoint();
+
+        dispatch_sync(new SendHeartbeatJob); // full
+
+        // Cache vorspulen: alle teuren Gruppen als "vor über 1 h gelaufen" markieren.
+        foreach (['composer', 'npm', 'environment'] as $name) {
+            Cache::put("larafleet_agent:collector:{$name}:last_run", time() - 3601, 7200);
+        }
+
+        dispatch_sync(new SendHeartbeatJob); // erneut full
+
+        $fullCount = collect(Http::recorded())
+            ->filter(fn ($pair) => (json_decode($pair[0]->body(), true)['type'] ?? null) === 'full')
+            ->count();
+
+        $this->assertSame(2, $fullCount);
+    }
+
+    public function test_command_sends_heartbeat(): void
+    {
+        $this->fakeEndpoint();
+
+        $this->artisan('larafleet:heartbeat')->assertSuccessful();
+
+        Http::assertSent(fn ($request) => isset(json_decode($request->body(), true)['type']));
     }
 }

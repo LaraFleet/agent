@@ -40,9 +40,12 @@ class InstallCommand extends Command
         $this->info('✓ .env wurde aktualisiert.');
         $this->info('✓ LaraFleet Agent ist einsatzbereit.');
         $this->newLine();
-        $this->line('Der Agent sendet jede Minute einen Heartbeat über den Laravel Scheduler.');
+        $this->line('Der Agent sendet alle 5 Minuten einen Heartbeat über den Laravel Scheduler.');
         $this->line('Stelle sicher, dass der Scheduler läuft:');
         $this->comment('  * * * * * php /pfad-zur-app/artisan schedule:run >> /dev/null 2>&1');
+        $this->newLine();
+        $this->line('Standard-Modus "command" läuft synchron im Scheduler – kein Queue-Worker nötig.');
+        $this->line('Für Apps mit eigenem Worker optional: LARAFLEET_DISPATCH=job in der .env.');
         $this->newLine();
 
         return self::SUCCESS;
