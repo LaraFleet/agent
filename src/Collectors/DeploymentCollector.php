@@ -7,6 +7,11 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class DeploymentCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['deployment_at', 'deployment_hash'];
+    }
+
     public function collect(): array
     {
         $deployFile = base_path(config('larafleet-agent.deployment_file', 'vendor/autoload.php'));

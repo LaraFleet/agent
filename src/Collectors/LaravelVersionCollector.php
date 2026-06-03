@@ -7,6 +7,11 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class LaravelVersionCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['laravel_version'];
+    }
+
     public function collect(): array
     {
         return [

@@ -6,6 +6,11 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class DiskUsageCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['disk_usage_mb', 'storage_usage_mb'];
+    }
+
     public function collect(): array
     {
         $basePath = base_path();

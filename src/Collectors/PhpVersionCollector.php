@@ -6,6 +6,11 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class PhpVersionCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['php_version', 'php_extensions'];
+    }
+
     public function collect(): array
     {
         return [

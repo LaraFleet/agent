@@ -6,6 +6,11 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class ComposerPackageCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['composer_packages', 'composer_advisories'];
+    }
+
     public function collect(): array
     {
         return [
@@ -15,18 +20,20 @@ class ComposerPackageCollector implements Collector
     }
 
     /**
-     * @return array<int, array{name: string, version: string, latest: string, outdated: bool, type: string}>
+     * @return array<int, array{name: string, version: string, latest: string, outdated: bool, type: string}>|null
      */
-    private function collectPackages(): array
+    private function collectPackages(): ?array
     {
         $lockFile = base_path('composer.lock');
-        $installed = [];
 
-        if (file_exists($lockFile)) {
-            $lock = json_decode(file_get_contents($lockFile), true);
-            foreach ($lock['packages'] ?? [] as $pkg) {
-                $installed[$pkg['name']] = $pkg['version'];
-            }
+        if (! file_exists($lockFile)) {
+            return null;
+        }
+
+        $installed = [];
+        $lock = json_decode(file_get_contents($lockFile), true);
+        foreach ($lock['packages'] ?? [] as $pkg) {
+            $installed[$pkg['name']] = $pkg['version'];
         }
 
         $outdated = $this->runComposerOutdated();
@@ -75,17 +82,22 @@ class ComposerPackageCollector implements Collector
     }
 
     /**
-     * @return array<int, array{package: string, cve: string, severity: string, title: string, link: string}>
+     * @return array<int, array{package: string, cve: string, severity: string, title: string, link: string}>|null
      */
-    private function collectAdvisories(): array
+    private function collectAdvisories(): ?array
     {
         $output = $this->exec('composer audit --format=json --no-interaction --no-ansi 2>/dev/null');
 
         if (empty($output)) {
-            return [];
+            return null;
         }
 
         $data = json_decode($output, true);
+
+        if (! is_array($data)) {
+            return null;
+        }
+
         $result = [];
 
         foreach ($data['advisories'] ?? [] as $packageName => $advisories) {

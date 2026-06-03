@@ -3,6 +3,40 @@
 All notable changes to this package will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.5] – 2026-06-03
+
+### Changed
+- **Unified heartbeat:** The previous cheap/expensive collector split (quick vs.
+  full heartbeats) has been replaced by a single, always-complete heartbeat.
+  Every run collects all data and sends `type=full` — no more `type=quick`
+  partial updates that created separate snapshot rows on the server.
+- Default heartbeat interval changed from **5 minutes to 60 minutes**
+  (`LARAFLEET_INTERVAL`). One complete snapshot per hour instead of a mixed
+  stream of partial and full updates.
+- `SchedulerCollector` — the `missed` threshold and cache TTL now scale
+  dynamically with `interval_minutes` (threshold: 1.5×, TTL: 3×) so the flag
+  remains accurate regardless of the configured interval.
+- `ComposerPackageCollector` — returns `null` (instead of `[]`) for
+  `composer_packages` when `composer.lock` is absent, and for
+  `composer_advisories` when `composer audit` produces no valid JSON output.
+- `NpmPackageCollector` — returns `null` (instead of `[]`) for both
+  `npm_packages` and `npm_advisories` when npm is disabled or `package.json`
+  is absent; `npm_advisories` is `null` when `npm audit` produces no valid
+  JSON output.
+
+### Added
+- `keys(): array` method on the `Collector` interface. `HeartbeatRunner` uses
+  this to fill a failed collector's keys with `null` so the heartbeat payload
+  is always structurally complete even when individual collectors throw.
+
+### Removed
+- `collectors.intervals` config section and the corresponding
+  `LARAFLEET_INTERVAL_COMPOSER`, `LARAFLEET_INTERVAL_NPM`,
+  `LARAFLEET_INTERVAL_ENVIRONMENT` environment variables — per-collector
+  intervals are no longer needed.
+- Cache-based "due" logic in `HeartbeatRunner` (replaced by fixed hourly
+  scheduling at the scheduler level).
+
 ## [0.1.4] – 2026-06-02
 
 ### Added
@@ -78,6 +112,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Feature tests (`HeartbeatTest`) and unit tests for collectors and the HTTP
   client.
 
+[0.1.5]: https://github.com/larafleet/agent/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/larafleet/agent/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/larafleet/agent/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/larafleet/agent/compare/v0.1.1...v0.1.2

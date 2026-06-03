@@ -6,6 +6,11 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class EnvSnapshotCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['env_snapshot'];
+    }
+
     public function collect(): array
     {
         $whitelist = config('larafleet-agent.env_whitelist', []);

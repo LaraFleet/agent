@@ -9,6 +9,11 @@ use Throwable;
 
 class QueueStatusCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['queue'];
+    }
+
     public function collect(): array
     {
         try {

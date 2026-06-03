@@ -6,16 +6,15 @@ use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class NpmPackageCollector implements Collector
 {
+    public function keys(): array
+    {
+        return ['npm_packages', 'npm_advisories'];
+    }
+
     public function collect(): array
     {
-        if (! config('larafleet-agent.npm_enabled', true)) {
-            return ['npm_packages' => [], 'npm_advisories' => []];
-        }
-
-        $packageJsonPath = base_path('package.json');
-
-        if (! file_exists($packageJsonPath)) {
-            return ['npm_packages' => [], 'npm_advisories' => []];
+        if (! config('larafleet-agent.npm_enabled', true) || ! file_exists(base_path('package.json'))) {
+            return ['npm_packages' => null, 'npm_advisories' => null];
         }
 
         return [
@@ -80,17 +79,22 @@ class NpmPackageCollector implements Collector
     }
 
     /**
-     * @return array<int, array{package: string, ghsa: string, severity: string, title: string}>
+     * @return array<int, array{package: string, ghsa: string, severity: string, title: string}>|null
      */
-    private function collectAdvisories(): array
+    private function collectAdvisories(): ?array
     {
         $output = $this->exec('npm audit --json 2>/dev/null');
 
         if (empty($output)) {
-            return [];
+            return null;
         }
 
         $data = json_decode($output, true);
+
+        if (! is_array($data)) {
+            return null;
+        }
+
         $result = [];
 
         foreach ($data['vulnerabilities'] ?? [] as $pkgName => $vuln) {
