@@ -13,10 +13,36 @@ class AgentServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(
-            __DIR__.'/../config/larafleet-agent.php',
-            'larafleet-agent'
+        $packageConfig = require __DIR__.'/../config/larafleet-agent.php';
+        $userConfig    = $this->app['config']->get('larafleet-agent', []);
+
+        $this->app['config']->set(
+            'larafleet-agent',
+            $this->deepMerge($packageConfig, $userConfig)
         );
+    }
+
+    /**
+     * Füllt fehlende Keys rekursiv aus den Package-Defaults auf.
+     * Vorhandene Nutzerwerte werden nie überschrieben.
+     *
+     * @param  array<string, mixed>  $package
+     * @param  array<string, mixed>  $user
+     * @return array<string, mixed>
+     */
+    private function deepMerge(array $package, array $user): array
+    {
+        foreach ($package as $key => $value) {
+            if (array_key_exists($key, $user)) {
+                if (is_array($value) && is_array($user[$key])) {
+                    $user[$key] = $this->deepMerge($value, $user[$key]);
+                }
+            } else {
+                $user[$key] = $value;
+            }
+        }
+
+        return $user;
     }
 
     public function boot(): void
