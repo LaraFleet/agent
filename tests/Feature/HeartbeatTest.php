@@ -2,6 +2,7 @@
 
 namespace LaraFleet\Agent\Tests\Feature;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use LaraFleet\Agent\AgentServiceProvider;
 use LaraFleet\Agent\Jobs\SendHeartbeatJob;
@@ -43,17 +44,17 @@ class HeartbeatTest extends TestCase
         });
     }
 
-    public function test_heartbeat_payload_contains_required_fields(): void
+    public function test_full_heartbeat_payload_contains_required_fields(): void
     {
         $this->fakeEndpoint();
 
-        dispatch_sync(new SendHeartbeatJob);
+        dispatch_sync(new SendHeartbeatJob); // erster Run → immer full (kalter Cache)
 
         Http::assertSent(function ($request) {
             $body = json_decode($request->body(), true);
 
             return isset($body['timestamp'])
-                && isset($body['type'])
+                && ($body['type'] ?? null) === 'full'
                 && isset($body['laravel_version'])
                 && isset($body['php_version'])
                 && array_key_exists('composer_packages', $body)
@@ -62,6 +63,21 @@ class HeartbeatTest extends TestCase
                 && isset($body['scheduler'])
                 && isset($body['env_snapshot']);
         });
+    }
+
+    public function test_quick_heartbeat_payload_contains_required_fields(): void
+    {
+        $this->fakeEndpoint();
+
+        dispatch_sync(new SendHeartbeatJob); // full – befüllt Cache
+        dispatch_sync(new SendHeartbeatJob); // quick
+
+        $body = json_decode(Http::recorded()[1][0]->body(), true);
+
+        $this->assertSame('quick', $body['type']);
+        $this->assertArrayHasKey('timestamp', $body);
+        $this->assertArrayHasKey('queue', $body);
+        $this->assertArrayHasKey('scheduler', $body);
     }
 
     public function test_signature_is_valid_hmac(): void
@@ -92,7 +108,7 @@ class HeartbeatTest extends TestCase
         dispatch_sync(new SendHeartbeatJob);
     }
 
-    public function test_every_run_is_full_snapshot(): void
+    public function test_first_run_is_full_snapshot(): void
     {
         $this->fakeEndpoint();
 
@@ -108,12 +124,36 @@ class HeartbeatTest extends TestCase
         });
     }
 
-    public function test_second_run_is_also_full_snapshot(): void
+    public function test_second_run_within_interval_is_quick(): void
     {
         $this->fakeEndpoint();
 
-        dispatch_sync(new SendHeartbeatJob);
-        dispatch_sync(new SendHeartbeatJob);
+        dispatch_sync(new SendHeartbeatJob); // full – markiert teure Collectoren im Cache
+        dispatch_sync(new SendHeartbeatJob); // quick – teure Collectoren noch nicht fällig
+
+        $requests = Http::recorded();
+        $lastBody = json_decode($requests[1][0]->body(), true);
+
+        $this->assertSame('quick', $lastBody['type']);
+        $this->assertArrayNotHasKey('composer_packages', $lastBody);
+        $this->assertArrayNotHasKey('npm_packages', $lastBody);
+        $this->assertArrayNotHasKey('laravel_version', $lastBody);
+        $this->assertArrayNotHasKey('env_snapshot', $lastBody);
+        $this->assertArrayHasKey('queue', $lastBody);
+        $this->assertArrayHasKey('scheduler', $lastBody);
+    }
+
+    public function test_full_again_after_interval_elapsed(): void
+    {
+        $this->fakeEndpoint();
+
+        dispatch_sync(new SendHeartbeatJob); // full
+
+        foreach (['composer', 'npm', 'environment'] as $name) {
+            Cache::put("larafleet_agent:collector:{$name}:last_run", time() - 3601, 7200);
+        }
+
+        dispatch_sync(new SendHeartbeatJob); // erneut full
 
         $fullCount = collect(Http::recorded())
             ->filter(fn ($pair) => (json_decode($pair[0]->body(), true)['type'] ?? null) === 'full')
@@ -144,6 +184,6 @@ class HeartbeatTest extends TestCase
 
         $this->artisan('larafleet:heartbeat')->assertSuccessful();
 
-        Http::assertSent(fn ($request) => (json_decode($request->body(), true)['type'] ?? null) === 'full');
+        Http::assertSent(fn ($request) => isset(json_decode($request->body(), true)['type']));
     }
 }

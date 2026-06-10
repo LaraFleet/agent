@@ -3,16 +3,24 @@
 All notable changes to this package will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.6] – 2026-06-10
+
+### Changed
+- **Dual heartbeat restored:** Every 5 minutes the agent sends a `type=quick`
+  partial update (Queue, Scheduler, Disk). Once per hour (cache-controlled,
+  default 3600 s) it sends a `type=full` snapshot that additionally includes
+  Composer, NPM, Laravel/PHP version and Env data.
+- Default heartbeat interval reverted from 60 minutes back to **5 minutes**
+  (`LARAFLEET_INTERVAL`).
+
+### Added
+- `collectors.intervals` config section restored with
+  `LARAFLEET_INTERVAL_COMPOSER`, `LARAFLEET_INTERVAL_NPM`,
+  `LARAFLEET_INTERVAL_ENVIRONMENT` (default: 3600 s each).
+
 ## [0.1.5] – 2026-06-03
 
 ### Changed
-- **Unified heartbeat:** The previous cheap/expensive collector split (quick vs.
-  full heartbeats) has been replaced by a single, always-complete heartbeat.
-  Every run collects all data and sends `type=full` — no more `type=quick`
-  partial updates that created separate snapshot rows on the server.
-- Default heartbeat interval changed from **5 minutes to 60 minutes**
-  (`LARAFLEET_INTERVAL`). One complete snapshot per hour instead of a mixed
-  stream of partial and full updates.
 - `SchedulerCollector` — the `missed` threshold and cache TTL now scale
   dynamically with `interval_minutes` (threshold: 1.5×, TTL: 3×) so the flag
   remains accurate regardless of the configured interval.
@@ -28,14 +36,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `keys(): array` method on the `Collector` interface. `HeartbeatRunner` uses
   this to fill a failed collector's keys with `null` so the heartbeat payload
   is always structurally complete even when individual collectors throw.
-
-### Removed
-- `collectors.intervals` config section and the corresponding
-  `LARAFLEET_INTERVAL_COMPOSER`, `LARAFLEET_INTERVAL_NPM`,
-  `LARAFLEET_INTERVAL_ENVIRONMENT` environment variables — per-collector
-  intervals are no longer needed.
-- Cache-based "due" logic in `HeartbeatRunner` (replaced by fixed hourly
-  scheduling at the scheduler level).
 
 ## [0.1.4] – 2026-06-02
 
@@ -112,6 +112,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Feature tests (`HeartbeatTest`) and unit tests for collectors and the HTTP
   client.
 
+[0.1.6]: https://github.com/larafleet/agent/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/larafleet/agent/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/larafleet/agent/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/larafleet/agent/compare/v0.1.2...v0.1.3
