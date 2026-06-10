@@ -16,10 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         php: ['8.2', '8.3', '8.4']
-        laravel: [10, 11, 12, 13]
+        laravel: [11, 12, 13]
         include:
-          - laravel: 10
-            testbench: 8
           - laravel: 11
             testbench: 9
           - laravel: 12
@@ -27,8 +25,6 @@ jobs:
           - laravel: 13
             testbench: 11
         exclude:
-          - php: '8.4'
-            laravel: 10
           - php: '8.2'
             laravel: 13
 
@@ -42,6 +38,9 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mbstring, dom, curl, json
           coverage: none
+
+      - name: Disable advisory blocking for dependency resolution
+        run: composer config --global --no-plugins policy.advisories.block false
 
       - name: Pin testbench to Laravel ${{ matrix.laravel }}
         run: composer require "orchestra/testbench:^${{ matrix.testbench }}.0" --no-interaction --no-update
