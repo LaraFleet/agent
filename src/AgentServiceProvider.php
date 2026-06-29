@@ -4,9 +4,11 @@ namespace LaraFleet\Agent;
 
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\ServiceProvider;
 use LaraFleet\Agent\Commands\HeartbeatCommand;
 use LaraFleet\Agent\Commands\InstallCommand;
+use LaraFleet\Agent\Http\ExceptionReporter;
 use LaraFleet\Agent\Jobs\SendHeartbeatJob;
 
 class AgentServiceProvider extends ServiceProvider
@@ -62,6 +64,15 @@ class AgentServiceProvider extends ServiceProvider
             $this->app->booted(function () {
                 $this->scheduleHeartbeat($this->app->make(Schedule::class));
             });
+        }
+
+        if (config('larafleet-agent.exceptions.enabled', true)) {
+            $handler = $this->app[ExceptionHandler::class];
+            if (method_exists($handler, 'reportable')) {
+                $handler->reportable(function (\Throwable $e) {
+                    app(ExceptionReporter::class)->report($e);
+                });
+            }
         }
     }
 

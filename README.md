@@ -50,11 +50,53 @@ This reduces snapshot rows in the dashboard from ~288 to ~24 per project per day
 | Env snapshot | Whitelisted keys only (configurable) | Hourly |
 | Deployment | Timestamp (mtime of vendor/autoload.php), Git hash | Hourly |
 
+## Exception Reporting
+
+Unhandled exceptions are automatically forwarded to LaraFleet — no extra setup
+required after installation. The agent hooks into Laravel's exception handler
+and sends a signed report to `POST /api/exceptions`.
+
+**What is reported:**
+
+| Field | Description |
+|---|---|
+| `exception.class` | Exception class name |
+| `exception.message` | Exception message |
+| `exception.file` / `line` | Source location |
+| `exception.trace` | Full stack trace |
+| `exception.fingerprint` | SHA-256 hash for deduplication |
+| `request.url` | Request URL (path only, no query string) |
+| `request.query` / `input` | GET and POST parameters (sensitive fields filtered) |
+| `request.user_id` | Authenticated user ID (no other user data) |
+| `context` | Laravel version, PHP version, environment |
+
+**Filtering:** the following request keys are replaced with `[FILTERED]` before
+transmission: `password`, `password_confirmation`, `current_password`, `token`,
+`api_key`. Custom keys can be added via `exceptions.dontFlash`.
+
+**Disabling:**
+
+```bash
+LARAFLEET_EXCEPTIONS_ENABLED=false
+```
+
+Or extend `exceptions.dontReport` in `config/larafleet-agent.php` to suppress
+specific exception classes:
+
+```php
+'exceptions' => [
+    'dontReport' => [
+        \App\Exceptions\MyExpectedException::class,
+    ],
+],
+```
+
 ## Security
 
-- Every heartbeat is signed with **HMAC-SHA256**
+- Every request is signed with **HMAC-SHA256**
 - **Replay protection**: requests older than 60 seconds are rejected by the server
 - **Env whitelist**: only explicitly allowed keys are transmitted
+- **Input filtering**: sensitive request parameters are never transmitted in plain text
 - No SSH credentials, no passwords, no full `.env` files
 
 ## Configuration
@@ -79,6 +121,9 @@ All options in `config/larafleet-agent.php`:
 | `collectors.intervals.composer` | `3600` | Composer collector interval in seconds |
 | `collectors.intervals.npm` | `3600` | npm collector interval in seconds |
 | `collectors.intervals.environment` | `3600` | Version/Env collector interval in seconds |
+| `exceptions.enabled` | `true` | Enable exception reporting |
+| `exceptions.dontReport` | see config | Exception classes that are never reported |
+| `exceptions.dontFlash` | see config | Request keys replaced with `[FILTERED]` |
 
 ### Dispatch mode
 

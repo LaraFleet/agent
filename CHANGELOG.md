@@ -3,6 +3,43 @@
 All notable changes to this package will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] – 2026-06-29
+
+### Added
+- **Exception Reporting:** Unhandled exceptions are now automatically reported
+  to the LaraFleet dashboard via `POST /api/exceptions`.
+  - `ExceptionReporter` class with fire-and-forget semantics — a LaraFleet
+    outage never affects the host application.
+  - Each report is signed with HMAC-SHA256, identical to the heartbeat mechanism.
+  - Payload includes exception class, message, file, line, full stack trace,
+    a SHA-256 fingerprint (for deduplication), request context, and environment.
+  - Sensitive request parameters (`password`, `password_confirmation`,
+    `current_password`, `token`, `api_key`) are replaced with `[FILTERED]`
+    in both query string and POST input before transmission.
+  - URL is sent without query string; filtered query parameters are available
+    in a separate `query` field.
+  - `exceptions.dontReport` list — exceptions that are never forwarded
+    (default: `AuthenticationException`, `AuthorizationException`,
+    `ModelNotFoundException`, `TokenMismatchException`, `ValidationException`,
+    `NotFoundHttpException`, `MethodNotAllowedHttpException`).
+  - `exceptions.dontFlash` list — request keys that are always filtered
+    (case-insensitive).
+  - Registration via `ExceptionHandler::reportable()` in the service provider;
+    guarded with `method_exists` for compatibility with custom handlers.
+  - Reporting is skipped silently when no `api_key` is configured.
+
+### Configuration
+
+New `exceptions` block in `config/larafleet-agent.php`:
+
+```php
+'exceptions' => [
+    'enabled'    => env('LARAFLEET_EXCEPTIONS_ENABLED', true),
+    'dontReport' => [ /* exception classes */ ],
+    'dontFlash'  => [ /* request keys to filter */ ],
+],
+```
+
 ## [0.1.6] – 2026-06-10
 
 ### Changed
@@ -112,6 +149,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Feature tests (`HeartbeatTest`) and unit tests for collectors and the HTTP
   client.
 
+[0.2.0]: https://github.com/larafleet/agent/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/larafleet/agent/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/larafleet/agent/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/larafleet/agent/compare/v0.1.3...v0.1.4

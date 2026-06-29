@@ -113,4 +113,33 @@ return [
     | Standard: vendor/autoload.php (wird bei jedem composer install aktualisiert).
     */
     'deployment_file' => env('LARAFLEET_DEPLOY_FILE', 'vendor/autoload.php'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Exception Reporting
+    |--------------------------------------------------------------------------
+    | Sendet unbehandelte Exceptions an die LaraFleet-Zentrale.
+    | dontReport: Diese Exception-Klassen werden nicht gemeldet.
+    | dontFlash:  Diese Request-Parameter werden durch [FILTERED] ersetzt
+    |             (gilt für query-Parameter und POST-Input gleichermaßen).
+    */
+    'exceptions' => [
+        'enabled' => env('LARAFLEET_EXCEPTIONS_ENABLED', true),
+        'dontReport' => [
+            \Illuminate\Auth\AuthenticationException::class,
+            \Illuminate\Auth\Access\AuthorizationException::class,
+            \Illuminate\Database\Eloquent\ModelNotFoundException::class,
+            \Illuminate\Session\TokenMismatchException::class,
+            \Illuminate\Validation\ValidationException::class,
+            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
+            \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException::class,
+        ],
+        'dontFlash' => [
+            'password',
+            'password_confirmation',
+            'current_password',
+            'token',
+            'api_key',
+        ],
+    ],
 ];
