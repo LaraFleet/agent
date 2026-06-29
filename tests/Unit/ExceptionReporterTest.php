@@ -36,9 +36,9 @@ class ExceptionReporterTest extends TestCase
         $reporter = new ExceptionReporter;
 
         $result = $reporter->filterInput([
-            'name'     => 'Max',
+            'name' => 'Max',
             'password' => 'secret',
-            'email'    => 'max@example.com',
+            'email' => 'max@example.com',
         ]);
 
         $this->assertSame('Max', $result['name']);

@@ -2,7 +2,6 @@
 
 namespace LaraFleet\Agent\Http;
 
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 class ExceptionReporter
@@ -19,17 +18,17 @@ class ExceptionReporter
                 return;
             }
 
-            $payload   = $this->buildPayload($e);
+            $payload = $this->buildPayload($e);
             $timestamp = time();
-            $body      = json_encode($payload, JSON_THROW_ON_ERROR);
+            $body = json_encode($payload, JSON_THROW_ON_ERROR);
             $signature = $this->sign($timestamp, $body, $apiKey);
 
             Http::timeout(config('larafleet-agent.timeout', 10))
                 ->withHeaders([
-                    'Content-Type'           => 'application/json',
-                    'X-LaraFleet-Api-Key'    => $apiKey,
-                    'X-LaraFleet-Signature'  => 'sha256='.$signature,
-                    'X-LaraFleet-Timestamp'  => (string) $timestamp,
+                    'Content-Type' => 'application/json',
+                    'X-LaraFleet-Api-Key' => $apiKey,
+                    'X-LaraFleet-Signature' => 'sha256='.$signature,
+                    'X-LaraFleet-Timestamp' => (string) $timestamp,
                 ])
                 ->send('POST', $this->exceptionsEndpoint(), ['body' => $body]);
         } catch (\Throwable $ex) {
@@ -65,12 +64,12 @@ class ExceptionReporter
     public function buildPayload(\Throwable $e): array
     {
         return [
-            'exception'   => $this->buildExceptionBlock($e),
-            'request'     => $this->buildRequestBlock(),
-            'context'     => [
+            'exception' => $this->buildExceptionBlock($e),
+            'request' => $this->buildRequestBlock(),
+            'context' => [
                 'laravel_version' => app()->version(),
-                'php_version'     => PHP_VERSION,
-                'environment'     => app()->environment(),
+                'php_version' => PHP_VERSION,
+                'environment' => app()->environment(),
             ],
             'occurred_at' => now()->toIso8601String(),
         ];
@@ -85,11 +84,11 @@ class ExceptionReporter
         );
 
         return [
-            'class'       => get_class($e),
-            'message'     => $e->getMessage(),
-            'file'        => $e->getFile(),
-            'line'        => $e->getLine(),
-            'trace'       => $trace,
+            'class' => get_class($e),
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $trace,
             'fingerprint' => hash('sha256', get_class($e).$e->getMessage().$e->getFile().$e->getLine()),
         ];
     }
@@ -104,10 +103,10 @@ class ExceptionReporter
             $request = app('request');
 
             return [
-                'url'     => $request->url(),
-                'method'  => $request->method(),
-                'query'   => $this->filterInput($request->query()),
-                'input'   => $this->filterInput($request->except($request->query())),
+                'url' => $request->url(),
+                'method' => $request->method(),
+                'query' => $this->filterInput($request->query()),
+                'input' => $this->filterInput($request->except($request->query())),
                 'user_id' => optional(auth()->user())?->getAuthIdentifier(),
             ];
         } catch (\Throwable) {

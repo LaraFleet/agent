@@ -16,7 +16,7 @@ class AgentServiceProvider extends ServiceProvider
     public function register(): void
     {
         $packageConfig = require __DIR__.'/../config/larafleet-agent.php';
-        $userConfig    = $this->app['config']->get('larafleet-agent', []);
+        $userConfig = $this->app['config']->get('larafleet-agent', []);
 
         $this->app['config']->set(
             'larafleet-agent',

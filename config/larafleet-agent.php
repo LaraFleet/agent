@@ -1,5 +1,13 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -126,13 +134,13 @@ return [
     'exceptions' => [
         'enabled' => env('LARAFLEET_EXCEPTIONS_ENABLED', true),
         'dontReport' => [
-            \Illuminate\Auth\AuthenticationException::class,
-            \Illuminate\Auth\Access\AuthorizationException::class,
-            \Illuminate\Database\Eloquent\ModelNotFoundException::class,
-            \Illuminate\Session\TokenMismatchException::class,
-            \Illuminate\Validation\ValidationException::class,
-            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
-            \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException::class,
+            AuthenticationException::class,
+            AuthorizationException::class,
+            ModelNotFoundException::class,
+            TokenMismatchException::class,
+            ValidationException::class,
+            NotFoundHttpException::class,
+            MethodNotAllowedHttpException::class,
         ],
         'dontFlash' => [
             'password',
