@@ -48,7 +48,43 @@ This reduces snapshot rows in the dashboard from ~288 to ~24 per project per day
 | npm packages | Installed, outdated | Hourly |
 | npm security advisories | via `npm audit` | Hourly |
 | Env snapshot | Whitelisted keys only (configurable) | Hourly |
-| Deployment | Timestamp (mtime of vendor/autoload.php), Git hash | Hourly |
+| Deployment | Timestamp (see [Deployment detection](#deployment-detection)), Git hash | Hourly |
+
+## Deployment detection
+
+`deployment_at` is the **newest mtime** of the following files (missing files
+are skipped; if none exists, `deployment_at` is `null`):
+
+1. `deployment_file` (default `vendor/autoload.php`) — covers release-based
+   deployments without `.git` (Envoyer, Deployer)
+2. the Git ref file `.git/HEAD` points to (e.g. `.git/refs/heads/master`);
+   `.git/HEAD` itself on a detached HEAD; `.git/packed-refs` if the ref is only packed
+3. `vendor/composer/installed.json`
+
+`vendor/autoload.php` alone is not enough: Composer only rewrites it when its
+content changes, so deployments with lock-only or code-only changes
+(`git reset --hard origin/master && composer install`) would go unnoticed.
+
+`deployment_hash` is the commit hash `.git/HEAD` resolves to.
+
+## Composer / npm audit errors
+
+If `composer audit` or `npm audit` cannot be run or returns no valid JSON, the
+payload contains `composer_audit_error` / `npm_audit_error` (short description,
+exit code, first line of stderr) and the advisories are `null`. On success the
+error key is `null`. A non-zero exit code alone is not an error — both tools use
+it to signal found advisories. `npm audit` only runs when a `package-lock.json`
+exists.
+
+The most common cause is that `composer` / `npm` is not in the `PATH` of the
+cron user (e.g. on Plesk). Configure the full command in `.env`:
+
+```bash
+# Plesk: Composer with a specific PHP version
+LARAFLEET_COMPOSER_BINARY="/opt/plesk/php/8.3/bin/php /usr/local/bin/composer"
+# Plesk: npm with its Node.js runtime
+LARAFLEET_NPM_BINARY="/opt/plesk/node/22/bin/node /opt/plesk/node/22/bin/npm"
+```
 
 ## Exception Reporting
 
@@ -116,8 +152,10 @@ All options in `config/larafleet-agent.php`:
 | `timeout` | `10` | HTTP timeout in seconds |
 | `queue` | `null` | Queue connection for `dispatch=job` mode |
 | `npm_enabled` | `true` | Enable npm data collection |
+| `composer_binary` | `composer` | Composer command (`LARAFLEET_COMPOSER_BINARY`) |
+| `npm_binary` | `npm` | npm command (`LARAFLEET_NPM_BINARY`) |
 | `env_whitelist` | see config | Allowed env keys |
-| `deployment_file` | `vendor/autoload.php` | File used for deployment detection |
+| `deployment_file` | `vendor/autoload.php` | Additional file for deployment detection (see above) |
 | `collectors.intervals.composer` | `3600` | Composer collector interval in seconds |
 | `collectors.intervals.npm` | `3600` | npm collector interval in seconds |
 | `collectors.intervals.environment` | `3600` | Version/Env collector interval in seconds |

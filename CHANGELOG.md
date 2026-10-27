@@ -3,6 +3,29 @@
 All notable changes to this package will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] – 2026-10-27
+
+### Added
+- `composer_audit_error` / `npm_audit_error` in the heartbeat payload (`string|null`):
+  `null` on success, otherwise a short description (reason, exit code, first
+  line of stderr; project path and URL credentials removed; max. 500 chars).
+  The advisories stay `null` in this case, so the dashboard no longer shows
+  stale advisories as current. A non-zero exit code with valid JSON is a success.
+- Config `composer_binary` (`LARAFLEET_COMPOSER_BINARY`, default `composer`) and
+  `npm_binary` (`LARAFLEET_NPM_BINARY`, default `npm`) for all Composer/npm calls,
+  e.g. `/opt/plesk/php/8.3/bin/php /usr/local/bin/composer`.
+
+### Changed
+- `deployment_at` is now the newest mtime of `deployment_file`, the checked-out
+  Git ref file (`.git/HEAD` on a detached HEAD, `.git/packed-refs` for packed
+  refs) and `vendor/composer/installed.json`. Previously only
+  `vendor/autoload.php` was used, which Composer does not rewrite on lock-only
+  or code-only deployments.
+- `npm audit` only runs when a `package-lock.json` exists (previously it ran
+  without lockfile and reported an empty advisory list).
+- Composer/npm are executed via `symfony/process` (now an explicit dependency);
+  stdout and stderr are captured separately.
+
 ## [0.2.0] – 2026-06-29
 
 ### Added

@@ -2,24 +2,33 @@
 
 namespace LaraFleet\Agent\Collectors;
 
+use LaraFleet\Agent\Collectors\Concerns\RunsCommands;
 use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class NpmPackageCollector implements Collector
 {
+    use RunsCommands;
+
     public function keys(): array
     {
-        return ['npm_packages', 'npm_advisories'];
+        return ['npm_packages', 'npm_advisories', 'npm_audit_error'];
     }
 
     public function collect(): array
     {
         if (! config('larafleet-agent.npm_enabled', true) || ! file_exists(base_path('package.json'))) {
-            return ['npm_packages' => null, 'npm_advisories' => null];
+            return ['npm_packages' => null, 'npm_advisories' => null, 'npm_audit_error' => null];
         }
+
+        // npm audit setzt ein Lockfile voraus – ohne läuft der Audit nicht.
+        [$advisories, $auditError] = file_exists(base_path('package-lock.json'))
+            ? $this->collectAdvisories()
+            : [null, null];
 
         return [
             'npm_packages' => $this->collectPackages(),
-            'npm_advisories' => $this->collectAdvisories(),
+            'npm_advisories' => $advisories,
+            'npm_audit_error' => $auditError,
         ];
     }
 
@@ -30,7 +39,7 @@ class NpmPackageCollector implements Collector
     {
         $installed = $this->getInstalledVersions();
 
-        $outdatedOutput = $this->exec('npm outdated --json 2>/dev/null');
+        $outdatedOutput = $this->npm('outdated --json')['output'];
         $outdated = json_decode($outdatedOutput, true) ?? [];
 
         $result = [];
@@ -79,20 +88,27 @@ class NpmPackageCollector implements Collector
     }
 
     /**
-     * @return array<int, array{package: string, ghsa: string, severity: string, title: string}>|null
+     * Ein Exit-Code ≠ 0 ist kein Fehler – npm audit meldet so gefundene
+     * Schwachstellen. Maßgeblich ist, ob gültiges JSON mit "vulnerabilities" kommt.
+     *
+     * @return array{0: array<int, array{package: string, ghsa: string, severity: string, title: string}>|null, 1: string|null}
      */
-    private function collectAdvisories(): ?array
+    private function collectAdvisories(): array
     {
-        $output = $this->exec('npm audit --json 2>/dev/null');
+        $run = $this->npm('audit --json');
 
-        if (empty($output)) {
-            return null;
+        if ($run['output'] === '') {
+            return [null, $this->describeFailure('npm audit returned no output', $run)];
         }
 
-        $data = json_decode($output, true);
+        $data = json_decode($run['output'], true);
 
-        if (! is_array($data)) {
-            return null;
+        if (! is_array($data) || ! is_array($data['vulnerabilities'] ?? null)) {
+            $reason = isset($data['error']['code'])
+                ? 'npm audit failed with '.$data['error']['code']
+                : 'npm audit returned invalid JSON';
+
+            return [null, $this->describeFailure($reason, $run)];
         }
 
         $result = [];
@@ -114,7 +130,7 @@ class NpmPackageCollector implements Collector
             }
         }
 
-        return $result;
+        return [$result, null];
     }
 
     private function resolveUpdateType(string $current, string $latest): string
@@ -136,10 +152,11 @@ class NpmPackageCollector implements Collector
         return 'patch';
     }
 
-    private function exec(string $command): string
+    /**
+     * @return array{exit_code: ?int, output: string, error_output: string}
+     */
+    private function npm(string $arguments): array
     {
-        $output = shell_exec('cd '.escapeshellarg(base_path()).' && '.$command);
-
-        return trim($output ?? '');
+        return $this->runTool(config('larafleet-agent.npm_binary') ?: 'npm', $arguments);
     }
 }
