@@ -2,20 +2,26 @@
 
 namespace LaraFleet\Agent\Collectors;
 
+use LaraFleet\Agent\Collectors\Concerns\RunsCommands;
 use LaraFleet\Agent\Collectors\Contracts\Collector;
 
 class ComposerPackageCollector implements Collector
 {
+    use RunsCommands;
+
     public function keys(): array
     {
-        return ['composer_packages', 'composer_advisories'];
+        return ['composer_packages', 'composer_advisories', 'composer_audit_error'];
     }
 
     public function collect(): array
     {
+        [$advisories, $auditError] = $this->collectAdvisories();
+
         return [
             'composer_packages' => $this->collectPackages(),
-            'composer_advisories' => $this->collectAdvisories(),
+            'composer_advisories' => $advisories,
+            'composer_audit_error' => $auditError,
         ];
     }
 
@@ -59,7 +65,7 @@ class ComposerPackageCollector implements Collector
      */
     private function runComposerOutdated(): array
     {
-        $output = $this->exec('composer outdated --format=json --no-interaction --no-ansi 2>/dev/null');
+        $output = $this->composer('outdated --format=json --no-interaction --no-ansi')['output'];
 
         if (empty($output)) {
             return [];
@@ -82,20 +88,23 @@ class ComposerPackageCollector implements Collector
     }
 
     /**
-     * @return array<int, array{package: string, cve: string, severity: string, title: string, link: string}>|null
+     * Ein Exit-Code ≠ 0 ist kein Fehler – composer audit meldet so gefundene
+     * Advisories. Maßgeblich ist, ob gültiges JSON mit "advisories" kommt.
+     *
+     * @return array{0: array<int, array{package: string, cve: string, severity: string, title: string, link: string}>|null, 1: string|null}
      */
-    private function collectAdvisories(): ?array
+    private function collectAdvisories(): array
     {
-        $output = $this->exec('composer audit --format=json --no-interaction --no-ansi 2>/dev/null');
+        $run = $this->composer('audit --format=json --no-interaction --no-ansi');
 
-        if (empty($output)) {
-            return null;
+        if ($run['output'] === '') {
+            return [null, $this->describeFailure('composer audit returned no output', $run)];
         }
 
-        $data = json_decode($output, true);
+        $data = json_decode($run['output'], true);
 
-        if (! is_array($data)) {
-            return null;
+        if (! is_array($data) || ! is_array($data['advisories'] ?? null)) {
+            return [null, $this->describeFailure('composer audit returned invalid JSON', $run)];
         }
 
         $result = [];
@@ -113,7 +122,7 @@ class ComposerPackageCollector implements Collector
             }
         }
 
-        return $result;
+        return [$result, null];
     }
 
     private function resolveUpdateType(string $current, string $latest): string
@@ -135,10 +144,11 @@ class ComposerPackageCollector implements Collector
         return 'patch';
     }
 
-    private function exec(string $command): string
+    /**
+     * @return array{exit_code: ?int, output: string, error_output: string}
+     */
+    private function composer(string $arguments): array
     {
-        $output = shell_exec('cd '.escapeshellarg(base_path()).' && '.$command);
-
-        return trim($output ?? '');
+        return $this->runTool(config('larafleet-agent.composer_binary') ?: 'composer', $arguments);
     }
 }

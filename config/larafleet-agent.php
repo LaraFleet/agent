@@ -115,10 +115,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Composer- / npm-Binary
+    |--------------------------------------------------------------------------
+    | Aufruf für composer bzw. npm in den Collectoren. Nötig, wenn das Binary
+    | nicht im PATH des Cron-Users liegt oder mit einer bestimmten PHP-Version
+    | laufen soll, z. B. auf Plesk:
+    |   LARAFLEET_COMPOSER_BINARY="/opt/plesk/php/8.3/bin/php /usr/local/bin/composer"
+    |   LARAFLEET_NPM_BINARY="/opt/plesk/node/22/bin/node /opt/plesk/node/22/bin/npm"
+    */
+    'composer_binary' => env('LARAFLEET_COMPOSER_BINARY', 'composer'),
+    'npm_binary' => env('LARAFLEET_NPM_BINARY', 'npm'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Deployment Detection
     |--------------------------------------------------------------------------
-    | Pfad zur Datei, deren mtime als Deployment-Zeitpunkt gilt.
-    | Standard: vendor/autoload.php (wird bei jedem composer install aktualisiert).
+    | Deployment-Zeitpunkt = jüngste mtime aus dieser Datei, der Git-Ref-Datei
+    | des ausgecheckten Branches (bzw. .git/HEAD / .git/packed-refs) und
+    | vendor/composer/installed.json – fehlende Dateien werden übersprungen.
+    | Die Datei hier ist relevant für Deployments ohne .git (z. B. Envoyer).
     */
     'deployment_file' => env('LARAFLEET_DEPLOY_FILE', 'vendor/autoload.php'),
 
